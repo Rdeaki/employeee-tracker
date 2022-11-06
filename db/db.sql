@@ -1,3 +1,3 @@
-DROP DATABASE IF EXISTS companydb;
-CREATE DATABASE companydb;
-USE companydb;
+DROP DATABASE IF EXISTS companyDB;
+CREATE DATABASE companyDB;
+USE companyDB;

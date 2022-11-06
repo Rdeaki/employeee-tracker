@@ -1,6 +1,9 @@
-const inquirer = require('inquirer')
+const inquirer = require('inquirer');
 const cTable = require('console.table');
 const db = require('./db/connection');
+const figlet = require('figlet');
+const chalk = require('chalk');
+
 
 db.connect(err => {
     if (err) throw err;
@@ -12,27 +15,22 @@ db.connect(err => {
     promptUser();
 });
 
-const inquirer = require('inquirer');
-const consoleTable = require('console.table');
-const db = require('./db/connection');
-
-db.connect(err => {
-    if (err) throw err;
-
-    console.log(chalk.red.bold(`====================================================================================`));
-    console.log(``);
-    console.log(chalk.blueBright.bold(figlet.textSync('Employee Tracker')));
-    console.log(``);
-    console.log(chalk.red.bold(`====================================================================================`));
-
-    promptUser();
-});
+actions = [
+    'View all departments',
+    'View all roles',
+    'View all employees',
+    'Add a department',
+    'Add an role',
+    'Add an employee',
+    'Update and employee role',
+    'Remove a employee'
+]
 
 const promptUser = () => {
     inquirer.prompt([
         {
             type: 'list',
-            name: 'menu',
+            name: 'answer',
             message: 'Select your choice',
             choices: actions
         }
@@ -40,7 +38,7 @@ const promptUser = () => {
     .then(({ answer }) => {
 
         if (answer === actions[0]) {displayDepts();}
-        if (answer === actions[1]) {displayRoles();}
+        if (answer === actions[1]) {displayrole();}
         if (answer === actions[2]) {displayEmployees();}
         if (answer === actions[3]) {addDept();}
         if (answer === actions[4]) {addRole();}
@@ -67,9 +65,7 @@ const moreActions = () => {
 // display all departments
 const displayDepts = () => {
     const query = db.query('SELECT * FROM department', (err, res) => {
-        if (err) {
-            throw err;
-        }
+        if (err) {throw err;}
 
         //displays table
 
@@ -82,8 +78,8 @@ const displayDepts = () => {
 };
 
 // display all roles
-const displayRoles = () => {
-    const query = db.query('SELECT roles.id, roles.title, roles.salary, department.name as department_name FROM roles LEFT JOIN department on roles.department_id = department.id;', (err, res) => {
+const displayrole = () => {
+    const query = db.query('SELECT role.title, role.salary, department.department_name as department_name FROM role LEFT JOIN department on role.department_id = department.id;', (err, res) => {
         if (err) {
             throw err;
         }
@@ -95,11 +91,11 @@ const displayRoles = () => {
     });
 };
 
-// display employee
+// display employees
 
 const displayEmployees = () => {
     console.log('view all employees');
-    const query = db.query('SELECT employee.id, employee.first_name, employee.last_name, roles.title as job_title, roles.salary, department.name as deparment, employee.manager_id FROM employee LEFT JOIN roles on employee.role_id = roles.id INNER JOIN department on roles.department_id = department.id', (err, res) => {
+    const query = db.query('SELECT employee.first_name, employee.last_name, role.title as job_title, role.salary, department.department_name as deparment, employee.manager_id FROM employee LEFT JOIN role on employee.role_id = role.id INNER JOIN department on role.department_id = department.id', (err, res) => {
         if (err) {
             throw err;
         } console.table(res)
@@ -112,15 +108,15 @@ const displayEmployees = () => {
 const addDept = () => {
     return inquirer.prompt([{
         type: 'input',
-        name: 'name',
+        name: 'department_name',
         message: 'Select a department you would like to add'
     },
     ])
     .then((answer) => {
-        console.log(answer.name);
+        console.log(answer.department_name);
         db.query(
-            'INSERT INTO department SET ?',
-            {name: answer.name},
+            `INSERT INTO department SET ?`,
+            {department_name: answer.department_name},
             (err, res) => {
                 if (err) {
                     throw err
@@ -134,11 +130,11 @@ const addDept = () => {
 
 // add a role
 const addRole = () => {
-    db.query('SELECT * FROM department', function (err, res) {
+    db.query('SELECT * FROM department', (err, res)=> {
         if (err) throw err;
 
         let departmentChoices = res.map(department => ({
-            name: department.name, value: department.id
+            name: department.department_name
         }));
 
         // prompt for questions
@@ -162,12 +158,12 @@ const addRole = () => {
         .then((answer) => {
             console.log(answer.title)
             db.query(
-                'INSERT INTO roles SET ?',
-                {
-                    title: answer.title,
-                    salary: answer.salary,
-                    department_id: answer.department
-                },
+                'INSERT INTO role (title, salary, department_id) VALUES (?,?,?)',
+                [
+                    answer.title,
+                    answer.salary,
+                    answer.department_id
+                ],
                 (err, res) => {
                     if (err) {
                         throw err
@@ -182,11 +178,11 @@ const addRole = () => {
 
 // add a employee
 const addEmp = () => {
-    db.query('SELECT * FROM roles', function (err, res) {
+    db.query('SELECT * FROM role', function (err, res) {
         if (err) throw err;
 
-        let roleList = res.map(roles => ({
-            name: roles.title, value: roles.id
+        let roleList = res.map(role => ({
+            name: role.title, value: role.id
         }));
         // prompt question
         inquirer.prompt([{
@@ -229,7 +225,7 @@ const addEmp = () => {
 // update an employee
 const updateEmp = () => {
     db.query(
-        'SELECT CONCAT(employee.first_name, " ",employee.last_name) AS full_name, employee.id as empl_id, roles.* FROM employee RIGHT JOIN roles on employee.role_id = roles.id',
+        'SELECT CONCAT(employee.first_name, " ",employee.last_name) AS full_name, employee.id as empl_id, role.* FROM employee RIGHT JOIN role on employee.role_id = role.id',
         function (err, res) {
             if (err) throw err;
 
@@ -238,10 +234,10 @@ const updateEmp = () => {
                 id:employee.empl_id,
                 value:[employee.full_name, employee.empl_id]
             }))
-            let roleList = res.map (roles => ({
-                title: roles.title,
-                id: roles.id,
-                value:[roles.title,roles.id]
+            let roleList = res.map (role => ({
+                title: role.title,
+                id: role.id,
+                value:[role.title,role.id]
             }));
             console.log(employeeList)
             inquirer.prompt([{
