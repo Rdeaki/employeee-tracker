@@ -41,3 +41,5 @@ While in the root directory of your app, open the command line and type ```npm s
 
 ## video
 
+https://youtu.be/u1HahUiiuRA
+
